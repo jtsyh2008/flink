@@ -53,7 +53,7 @@ Session 集群将启动所有必需的 Flink 服务（JobManager 和 TaskManager
 $ ./bin/kubernetes-session.sh
 {% endhighlight %}
 
-所有 Kubernetes 配置项都可以在我们的[配置指南]({{ site.baseurl }}/zh/ops/config.html#kubernetes)中找到。
+所有 Kubernetes 配置项都可以在我们的[配置指南]({% link ops/config.zh.md %}#kubernetes)中找到。
 
 **示例**: 执行以下命令启动 session 集群，每个 TaskManager 分配 4 GB 内存、2 CPUs、4 slots：
 
@@ -70,14 +70,19 @@ $ ./bin/kubernetes-session.sh \
 {% endhighlight %}
 
 系统将使用 `conf/flink-conf.yaml` 中的配置。
-如果你更改某些配置，请遵循我们的[配置指南]({{ site.baseurl }}/zh/ops/config.html)。
+如果你更改某些配置，请遵循我们的[配置指南]({% link ops/config.zh.md %})。
 
 如果你未通过 `kubernetes.cluster-id` 为 session 指定特定名称，Flink 客户端将会生成一个 UUID 名称。
 
-### 自定义 Flink Docker 镜像
+<span class="label label-info">注意</span> 如果要启动 session 集群运行 PyFlink 作业， 你需要提供一个安装有 Python 和 PyFlink 的镜像。
+请参考下面的[章节](#custom-flink-docker-image).
 
-如果要使用自定义的 Docker 镜像部署 Flink 容器，请查看 [Flink Docker 镜像文档](docker.html)、[镜像 tags](docker.html#image-tags)、[如何自定义 Flink Docker 镜像](docker.html#customize-flink-image)和[启用插件](docker.html#using-plugins)。
-如果创建了自定义的 Docker 镜像，则可以通过设置 [`kubernetes.container.image`](../config.html#kubernetes-container-image) 配置项来指定它：
+### 自定义 Flink Docker 镜像
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+如果要使用自定义的 Docker 镜像部署 Flink 容器，请查看 [Flink Docker 镜像文档]({% link ops/deployment/docker.zh.md %})、[镜像 tags]({% link ops/deployment/docker.zh.md %}#image-tags)、[如何自定义 Flink Docker 镜像]({% link ops/deployment/docker.zh.md %}#customize-flink-image)和[启用插件]({% link ops/deployment/docker.zh.md %}#using-plugins)。
+如果创建了自定义的 Docker 镜像，则可以通过设置 [`kubernetes.container.image`]({% link ops/config.zh.md %}#kubernetes-container-image) 配置项来指定它：
 
 {% highlight bash %}
 $ ./bin/kubernetes-session.sh \
@@ -88,14 +93,60 @@ $ ./bin/kubernetes-session.sh \
   -Dresourcemanager.taskmanager-timeout=3600000 \
   -Dkubernetes.container.image=<CustomImageName>
 {% endhighlight %}
+</div>
+
+
+<div data-lang="python" markdown="1">
+请参考下面的 Dockerfile 构建一个安装了 Python 和 PyFlink 的 docker 镜像：
+{% highlight Dockerfile %}
+FROM flink
+
+# 安装 python3 和 pip3
+RUN apt-get update -y && \
+    apt-get install -y python3.7 python3-pip python3.7-dev && rm -rf /var/lib/apt/lists/*
+RUN ln -s /usr/bin/python3 /usr/bin/python
+    
+# 安装 Python Flink
+RUN pip3 install apache-flink
+{% endhighlight %}
+
+构建镜像，命名为**pyflink:latest**:
+{% highlight bash %}
+sudo docker build -t pyflink:latest .
+{% endhighlight %}
+接下来将下面的命令行 [`kubernetes.container.image`]({% link ops/config.zh.md %}#kubernetes-container-image) 参数值配置成刚刚构建的镜像名，并运行启动一个 PyFlink session 集群：
+
+{% highlight bash %}
+$ ./bin/kubernetes-session.sh \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dtaskmanager.memory.process.size=4096m \
+  -Dkubernetes.taskmanager.cpu=2 \
+  -Dtaskmanager.numberOfTaskSlots=4 \
+  -Dresourcemanager.taskmanager-timeout=3600000 \
+  -Dkubernetes.container.image=pyflink:latest
+{% endhighlight %}
+</div>
+
+</div>
 
 ### 将作业提交到现有 Session
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 
 使用以下命令将 Flink 作业提交到 Kubernetes 集群。
 
 {% highlight bash %}
 $ ./bin/flink run -d -t kubernetes-session -Dkubernetes.cluster-id=<ClusterId> examples/streaming/WindowJoin.jar
 {% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+使用以下命令将 PyFlink 作业提交到 Kubernetes 集群。
+{% highlight bash %}
+$ ./bin/flink run -d -t kubernetes-session -Dkubernetes.cluster-id=<ClusterId> -pym scala_function -pyfs examples/python/table/udf
+{% endhighlight %}
+</div>
+</div>
 
 ### 访问 Job Manager UI
 
@@ -149,19 +200,14 @@ Flink 用 [Kubernetes OwnerReference's](https://kubernetes.io/docs/concepts/work
 $ kubectl delete deployment/<ClusterID>
 {% endhighlight %}
 
-## 日志文件
-
-默认情况下，JobManager 和 TaskManager 会把日志同时输出到console和每个 pod 中的 `/opt/flink/log` 下。
-STDOUT 和 STDERR 只会输出到console。你可以使用 `kubectl logs <PodName>` 来访问它们。
-
-如果 pod 正在运行，还可以使用 `kubectl exec -it <PodName> bash` 进入 pod 并查看日志或调试进程。
-
 ## Flink Kubernetes Application
 
 ### 启动 Flink Application
+<div class="codetabs" markdown="1">
 
-Application 模式允许用户创建单个镜像，其中包含他们的作业和 Flink 运行时，该镜像将按需自动创建和销毁集群组件。Flink 社区提供了可以构建[多用途自定义镜像](docker.html#customize-flink-image)的基础镜像。
+Application 模式允许用户创建单个镜像，其中包含他们的作业和 Flink 运行时，该镜像将按需自动创建和销毁集群组件。Flink 社区提供了可以构建[多用途自定义镜像]({% link ops/deployment/docker.zh.md %}#customize-flink-image)的基础镜像。
 
+<div data-lang="java" markdown="1">
 {% highlight dockerfile %}
 FROM flink
 RUN mkdir -p $FLINK_HOME/usrlib
@@ -178,6 +224,44 @@ $ ./bin/flink run-application -p 8 -t kubernetes-application \
   -Dkubernetes.container.image=<CustomImageName> \
   local:///opt/flink/usrlib/my-flink-job.jar
 {% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight dockerfile %}
+FROM flink
+
+# 安装 python3 and pip3
+RUN apt-get update -y && \
+    apt-get install -y python3.7 python3-pip python3.7-dev && rm -rf /var/lib/apt/lists/*
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# 安装 Python Flink
+RUN pip3 install apache-flink
+COPY /path/of/python/codes /opt/python_codes
+
+# 如果有引用第三方 Python 依赖库， 可以在构建镜像时安装上这些依赖
+COPY /path/to/requirements.txt /opt/requirements.txt
+RUN pip3 install -r requirements.txt
+
+# 如果有引用第三方 Java 依赖， 也可以在构建镜像时加入到 ${FLINK_HOME}/usrlib 目录下
+RUN mkdir -p $FLINK_HOME/usrlib
+COPY /path/of/external/jar/dependencies $FLINK_HOME/usrlib/
+{% endhighlight %}
+
+假设构建的应用镜像名是 **my-pyflink-app:latest**， 通过下面的命令行运行 PyFlink 应用：
+{% highlight bash %}
+$ ./bin/flink run-application -p 8 -t kubernetes-application \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dtaskmanager.memory.process.size=4096m \
+  -Dkubernetes.taskmanager.cpu=2 \
+  -Dtaskmanager.numberOfTaskSlots=4 \
+  -Dkubernetes.container.image=my-pyflink-app:latest \
+  -pym <ENTRY_MODULE_NAME> (or -py /opt/python_codes/<ENTRY_FILE_NAME>) -pyfs /opt/python_codes
+{% endhighlight %}
+可以使用 `-py/--python` 参数指定 PyFlink 应用的入口脚本文件， 或者使用 `-pym/--pyModule` 参数指定入口模块名， 使用 `-pyfs/--pyFiles` 参数指定所有 Python 文件路径， 以及其他在 flink run 中能配置的 PyFlink 作业参数。
+</div>
+</div>
+
 
 注意：Application 模式只支持 "local" 作为 schema。默认 jar 位于镜像中，而不是 Flink 客户端中。
 
@@ -191,6 +275,104 @@ $ ./bin/flink run-application -p 8 -t kubernetes-application \
 {% highlight bash %}
 $ ./bin/flink cancel -t kubernetes-application -Dkubernetes.cluster-id=<ClusterID> <JobID>
 {% endhighlight %}
+
+
+## 日志文件
+
+默认情况下，JobManager 和 TaskManager 会把日志同时输出到console和每个 pod 中的 `/opt/flink/log` 下。
+STDOUT 和 STDERR 只会输出到console。你可以使用 `kubectl logs <PodName>` 来访问它们。
+
+如果 pod 正在运行，还可以使用 `kubectl exec -it <PodName> bash` 进入 pod 并查看日志或调试进程。
+
+## 启用插件
+
+为了使用[插件]({% link ops/plugins.zh.md %})，必须要将相应的Jar包拷贝到JobManager和TaskManager Pod里的对应目录。
+使用内置的插件就不需要再挂载额外的存储卷或者构建自定义镜像。
+例如，可以使用如下命令通过设置环境变量来给你的Flink应用启用S3插件。
+
+{% highlight bash %}
+$ ./bin/flink run-application -p 8 -t kubernetes-application \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dkubernetes.container.image=<CustomImageName> \
+  -Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{site.version}}.jar \
+  -Dcontainerized.taskmanager.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{site.version}}.jar \
+  local:///opt/flink/usrlib/my-flink-job.jar
+{% endhighlight %}
+
+## Using Secrets
+
+[Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/) is an object that contains a small amount of sensitive data such as a password, a token, or a key.
+Such information might otherwise be put in a Pod specification or in an image. Flink on Kubernetes can use Secrets in two ways:
+
+- Using Secrets as files from a pod;
+
+- Using Secrets as environment variables;
+
+### Using Secrets as files from a pod
+
+Here is an example of a Pod that mounts a Secret in a volume:
+
+{% highlight yaml %}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: foo
+spec:
+  containers:
+  - name: foo
+    image: foo
+    volumeMounts:
+    - name: foo
+      mountPath: "/opt/foo"
+  volumes:
+  - name: foo
+    secret:
+      secretName: foo
+{% endhighlight %}
+
+By applying this yaml, each key in foo Secrets becomes the filename under `/opt/foo` path. Flink on Kubernetes can enable this feature by the following command:
+
+{% highlight bash %}
+$ ./bin/kubernetes-session.sh \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dkubernetes.container.image=<CustomImageName> \
+  -Dkubernetes.secrets=foo:/opt/foo
+{% endhighlight %}
+
+For more details see the [official Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-files-from-a-pod).
+
+### Using Secrets as environment variables
+
+Here is an example of a Pod that uses secrets from environment variables:
+
+{% highlight yaml %}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: foo
+spec:
+  containers:
+  - name: foo
+    image: foo
+    env:
+      - name: FOO_ENV
+        valueFrom:
+          secretKeyRef:
+            name: foo_secret
+            key: foo_key
+{% endhighlight %}
+
+By applying this yaml, an environment variable named `FOO_ENV` is added into `foo` container, and `FOO_ENV` consumes the value of `foo_key` which is defined in Secrets `foo_secret`.
+Flink on Kubernetes can enable this feature by the following command:
+
+{% highlight bash %}
+$ ./bin/kubernetes-session.sh \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dkubernetes.container.image=<CustomImageName> \
+  -Dkubernetes.env.secretKeyRef=env:FOO_ENV,secret:foo_secret,key:foo_key
+{% endhighlight %}
+
+For more details see the [official Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables).
 
 ## Kubernetes 概念
 
@@ -230,7 +412,7 @@ $ kubectl create clusterrolebinding flink-role-binding-flink --clusterrole=edit 
 
 本节简要解释了 Flink 和 Kubernetes 如何交互。
 
-<img src="{{ site.baseurl }}/fig/FlinkOnK8s.svg" class="img-responsive">
+<img src="{% link /fig/FlinkOnK8s.svg %}" class="img-responsive">
 
 创建 Flink Kubernetes session 集群时，Flink 客户端首先将连接到 Kubernetes ApiServer 提交集群描述信息，包括 ConfigMap 描述信息、Job Manager Service 描述信息、Job Manager Deployment 描述信息和 Owner Reference。
 Kubernetes 将创建 JobManager 的 deployment，在此期间 Kubelet 将拉取镜像，准备并挂载卷，然后执行 start 命令。

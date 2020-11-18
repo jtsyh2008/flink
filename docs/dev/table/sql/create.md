@@ -36,9 +36,31 @@ Flink SQL supports the following CREATE statements for now:
 
 ## Run a CREATE statement
 
-CREATE statements can be executed with the `executeSql()` method of the `TableEnvironment`, or executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html). The `executeSql()` method returns 'OK' for a successful CREATE operation, otherwise will throw an exception.
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="java/scala" markdown="1">
 
-The following examples show how to run a CREATE statement in `TableEnvironment` and in SQL CLI.
+CREATE statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns 'OK' for a successful CREATE operation, otherwise will throw an exception.
+
+The following examples show how to run a CREATE statement in `TableEnvironment`.
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+CREATE statements can be executed with the `execute_sql()` method of the `TableEnvironment`. The `execute_sql()` method returns 'OK' for a successful CREATE operation, otherwise will throw an exception.
+
+The following examples show how to run a CREATE statement in `TableEnvironment`.
+
+</div>
+
+<div data-lang="SQL CLI" markdown="1">
+
+CREATE statements can be executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html).
+
+The following examples show how to run a CREATE statement in SQL CLI.
+
+</div>
+</div>
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -148,7 +170,10 @@ CREATE TABLE [catalog_name.][db_name.]table_name
 
 <watermark_definition>:
   WATERMARK FOR rowtime_column_name AS watermark_strategy_expression
-  
+
+<source_table>:
+  [catalog_name.][db_name.]table_name
+
 <like_options>:
 {
    { INCLUDING | EXCLUDING } { ALL | CONSTRAINTS | PARTITIONS }
@@ -190,11 +215,11 @@ Flink provides several commonly used watermark strategies.
 
 - Strictly ascending timestamps: `WATERMARK FOR rowtime_column AS rowtime_column`.
 
-  Emits a watermark of the maximum observed timestamp so far. Rows that have a timestamp smaller to the max timestamp are not late.
+  Emits a watermark of the maximum observed timestamp so far. Rows that have a timestamp bigger to the max timestamp are not late.
 
 - Ascending timestamps: `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '0.001' SECOND`.
 
-  Emits a watermark of the maximum observed timestamp so far minus 1. Rows that have a timestamp equal and smaller to the max timestamp are not late.
+  Emits a watermark of the maximum observed timestamp so far minus 1. Rows that have a timestamp bigger or equal to the max timestamp are not late.
 
 - Bounded out of orderness timestamps: `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL 'string' timeUnit`.
 
@@ -336,6 +361,8 @@ If you provide no like options, `INCLUDING ALL OVERWRITING OPTIONS` will be used
 
 **NOTE** You cannot control the behavior of merging physical fields. Those will be merged as if you applied the `INCLUDING` strategy.
 
+**NOTE** The `source_table` can be a compound identifier. Thus, it can be a table from a different catalog or database: e.g. `my_catalog.my_db.MyTable` specifies table `MyTable` from catalog `MyCatalog` and database `my_db`; `my_db.MyTable` specifies table `MyTable` from current catalog and database `my_db`.
+
 {% top %}
 
 ## CREATE CATALOG
@@ -407,7 +434,9 @@ Create a catalog function that has catalog and database namespaces with the iden
 
 If the language tag is JAVA/SCALA, the identifier is the full classpath of the UDF. For the implementation of Java/Scala UDF, please refer to [User-defined Functions]({{ site.baseurl }}/dev/table/functions/udfs.html) for more details.
 
-If the language tag is PYTHON, the identifier is the fully qualified name of the UDF, e.g. `pyflink.table.tests.test_udf.add`. For the implementation of Python UDF, please refer to [Python UDFs]({{ site.baseurl }}/dev/table/python/python_udfs.html) for more details.
+If the language tag is PYTHON, the identifier is the fully qualified name of the UDF, e.g. `pyflink.table.tests.test_udf.add`. For the implementation of Python UDF, please refer to [Python UDFs]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}) for more details.
+
+If the language tag is PYTHON, however the current program is written in Java/Scala or pure SQL, then you need to [configure the Python dependencies]({% link dev/python/table-api-users-guide/dependency_management.md %}#python-dependency-in-javascala-program).
 
 **TEMPORARY**
 

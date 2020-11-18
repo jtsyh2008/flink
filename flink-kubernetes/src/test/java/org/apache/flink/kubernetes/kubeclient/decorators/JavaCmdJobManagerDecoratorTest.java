@@ -25,7 +25,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal
 import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
-import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
+import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
 
 import io.fabric8.kubernetes.api.model.Container;
 import org.junit.Test;
@@ -37,6 +37,10 @@ import java.util.List;
 
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
+import static org.apache.flink.kubernetes.utils.Constants.NATIVE_KUBERNETES_COMMAND;
+import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.createDefaultJobManagerProcessSpec;
+import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.generateDynamicConfigsStr;
+import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.generateJvmParametersStr;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
@@ -66,9 +70,10 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 	private static final String jmLogfile = String.format("-Dlog.file=%s/jobmanager.log", FLINK_LOG_DIR_IN_POD);
 
 	// Memory variables
-	private final String jmJvmMem = JobManagerProcessUtils.generateJvmParametersStr(
-		JobManagerProcessUtils.createDefaultJobManagerProcessSpec(JOB_MANAGER_MEMORY),
-		flinkConfig);
+	private static final JobManagerProcessSpec JOB_MANAGER_PROCESS_SPEC = createDefaultJobManagerProcessSpec(JOB_MANAGER_MEMORY);
+
+	private final String jmJvmMem = generateJvmParametersStr(JOB_MANAGER_PROCESS_SPEC, flinkConfig);
+	private final String jmDynamicProperties = generateDynamicConfigsStr(JOB_MANAGER_PROCESS_SPEC);
 
 	private JavaCmdJobManagerDecorator javaCmdJobManagerDecorator;
 
@@ -104,7 +109,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 		assertEquals(Collections.singletonList(KUBERNETES_ENTRY_PATH), resultMainContainer.getCommand());
 
 		final String expectedCommand = getJobManagerExpectedCommand("", "");
-		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
+		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
 
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
@@ -119,7 +124,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 		assertEquals(Collections.singletonList(KUBERNETES_ENTRY_PATH), resultMainContainer.getCommand());
 
 		final String expectedCommand = getJobManagerExpectedCommand("", log4j);
-		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
+		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
@@ -133,7 +138,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 		assertEquals(Collections.singletonList(KUBERNETES_ENTRY_PATH), resultMainContainer.getCommand());
 
 		final String expectedCommand = getJobManagerExpectedCommand("", logback);
-		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
+		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
@@ -149,7 +154,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 
 		final String expectedCommand =
 				getJobManagerExpectedCommand("", logback + " " + log4j);
-		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
+		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
@@ -166,7 +171,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 
 		final String expectedCommand =
 				getJobManagerExpectedCommand(jvmOpts, logback + " " + log4j);
-		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
+		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
@@ -181,7 +186,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 
 		assertEquals(Collections.singletonList(KUBERNETES_ENTRY_PATH), resultMainContainer.getCommand());
 		final String expectedCommand = getJobManagerExpectedCommand(jvmOpts, logback + " " + log4j);
-		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
+		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
@@ -207,10 +212,10 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 		final String expectedCommand = java + " 1 " + classpath + " 2 " + jmJvmMem +
 				" " + jvmOpts + " " + jmJvmOpts +
 				" " + jmLogfile + " " + logback + " " + log4j +
-				" " + ENTRY_POINT_CLASS;
+				" " + ENTRY_POINT_CLASS + " " + jmDynamicProperties;
 
-		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
-		assertEquals(resultMainContainer.getArgs(), expectedArgs);
+		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
+		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
 	@Test
@@ -235,16 +240,16 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 		final String expectedCommand = java + " " + jmJvmMem +
 				" " + jmLogfile + " " + logback + " " + log4j +
 				" " + jvmOpts + " " + jmJvmOpts +
-				" " + ENTRY_POINT_CLASS;
+				" " + ENTRY_POINT_CLASS + " " + jmDynamicProperties;
 
-		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
-		assertEquals(resultMainContainer.getArgs(), expectedArgs);
+		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
+		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
 	private String getJobManagerExpectedCommand(String jvmAllOpts, String logging) {
 		return java + " " + classpath + " " + jmJvmMem +
 				(jvmAllOpts.isEmpty() ? "" : " " + jvmAllOpts) +
 				(logging.isEmpty() ? "" : " " + jmLogfile + " " + logging) +
-				" " + ENTRY_POINT_CLASS;
+				" " + ENTRY_POINT_CLASS + " " + jmDynamicProperties;
 	}
 }

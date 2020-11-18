@@ -22,13 +22,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptionsInternal;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -115,11 +115,7 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
 
 	@Override
 	public Map<String, String> getCommonLabels() {
-		Map<String, String> commonLabels = new HashMap<>();
-		commonLabels.put(Constants.LABEL_TYPE_KEY, Constants.LABEL_TYPE_NATIVE_TYPE);
-		commonLabels.put(Constants.LABEL_APP_KEY, getClusterId());
-
-		return Collections.unmodifiableMap(commonLabels);
+		return Collections.unmodifiableMap(KubernetesUtils.getCommonLabels(getClusterId()));
 	}
 
 	@Override
@@ -176,5 +172,14 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
 		}
 
 		return Optional.empty();
+	}
+
+	public Map<String, String> getSecretNamesToMountPaths() {
+		return flinkConfig.getOptional(KubernetesConfigOptions.KUBERNETES_SECRETS).orElse(Collections.emptyMap());
+	}
+
+	@Override
+	public List<Map<String, String>> getEnvironmentsFromSecrets() {
+		return flinkConfig.getOptional(KubernetesConfigOptions.KUBERNETES_ENV_SECRET_KEY_REF).orElse(Collections.emptyList());
 	}
 }

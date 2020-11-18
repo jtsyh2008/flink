@@ -89,12 +89,14 @@ public class MemoryManager {
 	 *
 	 * @param memorySize The total size of the off-heap memory to be managed by this memory manager.
 	 * @param pageSize The size of the pages handed out by the memory manager.
+	 * @param verifyEmptyWaitGcMaxSleeps defines how long to wait for GC of all allocated memory to check for memory leaks,
+	 *                                   see {@link UnsafeMemoryBudget} for details.
 	 */
-	public MemoryManager(long memorySize, int pageSize) {
+	MemoryManager(long memorySize, int pageSize, int verifyEmptyWaitGcMaxSleeps) {
 		sanityCheck(memorySize, pageSize);
 
 		this.pageSize = pageSize;
-		this.memoryBudget = new UnsafeMemoryBudget(memorySize);
+		this.memoryBudget = new UnsafeMemoryBudget(memorySize, verifyEmptyWaitGcMaxSleeps);
 		this.totalNumberOfPages = memorySize / pageSize;
 		this.allocatedSegments = new ConcurrentHashMap<>();
 		this.reservedMemory = new ConcurrentHashMap<>();
@@ -469,17 +471,6 @@ public class MemoryManager {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Acquires a shared memory resource, that uses all the memory of this memory manager.
-	 * This method behaves otherwise exactly as {@link #getSharedMemoryResourceForManagedMemory(String, LongFunctionWithException, double)}.
-	 */
-	public <T extends AutoCloseable> OpaqueMemoryResource<T> getSharedMemoryResourceForManagedMemory(
-			String type,
-			LongFunctionWithException<T, Exception> initializer) throws Exception {
-
-		return getSharedMemoryResourceForManagedMemory(type, initializer, 1.0);
-	}
-
-	/**
 	 * Acquires a shared memory resource, identified by a type string. If the resource already exists, this
 	 * returns a descriptor to the resource. If the resource does not yet exist, the given memory fraction
 	 * is reserved and the resource is initialized with that size.
@@ -588,7 +579,7 @@ public class MemoryManager {
 	}
 
 	/**
-	 * Returns the available amount of the certain type of memory handled by this memory manager.
+	 * Returns the available amount of memory handled by this memory manager.
 	 *
 	 * @return The available amount of memory.
 	 */
@@ -626,11 +617,16 @@ public class MemoryManager {
 		return (long) Math.floor(memoryBudget.getTotalMemorySize() * fraction);
 	}
 
-	// ------------------------------------------------------------------------
-	//  factories for testing
-	// ------------------------------------------------------------------------
-
-	public static MemoryManager forDefaultPageSize(long size) {
-		return new MemoryManager(size, DEFAULT_PAGE_SIZE);
+	/**
+	 * Creates a memory manager with the given capacity and given page size.
+	 *
+	 * <p>This is a production version of MemoryManager which waits for longest time
+	 * to check for memory leaks ({@link #verifyEmpty()}) once the owner of the MemoryManager is ready to dispose.
+	 *
+	 * @param memorySize The total size of the off-heap memory to be managed by this memory manager.
+	 * @param pageSize The size of the pages handed out by the memory manager.
+	 */
+	public static MemoryManager create(long memorySize, int pageSize) {
+		return new MemoryManager(memorySize, pageSize, UnsafeMemoryBudget.MAX_SLEEPS_VERIFY_EMPTY);
 	}
 }

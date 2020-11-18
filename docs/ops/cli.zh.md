@@ -71,6 +71,9 @@ option.
 {:toc}
 
 ## Examples
+
+<a name="job-submission-examples"/>
+
 ### 作业提交示例
 -----------------------------
 
@@ -92,10 +95,6 @@ option.
         ./bin/flink run -p 16 ./examples/batch/WordCount.jar \
                              --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
--   Run example program with flink log output disabled:
-
-            ./bin/flink run -q ./examples/batch/WordCount.jar
-
 -   Run example program in detached mode:
 
             ./bin/flink run -d ./examples/batch/WordCount.jar
@@ -112,7 +111,7 @@ option.
                                ./examples/batch/WordCount.jar \
                                --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
--   Run example program using a [per-job YARN cluster]({{site.baseurl}}/ops/deployment/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
+-   Run example program using a [per-job YARN cluster]({% link ops/deployment/yarn_setup.zh.md %}#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
 
         ./bin/flink run -m yarn-cluster \
                                ./examples/batch/WordCount.jar \
@@ -122,11 +121,11 @@ option.
 
 <div data-lang="python" markdown="1">
 
-<span class="label label-info">注意</span> 通过`flink run`提交Python任务时Flink会调用“python”命令。请执行以下命令以确认当前环境下的指令“python”指向Python的版本为3.5, 3.6 或者 3.7中的一个：
+<span class="label label-info">注意</span> 通过`flink run`提交Python任务时Flink会调用“python”命令。请执行以下命令以确认当前环境下的指令“python”指向Python的版本为3.5、3.6、3.7 或 3.8 中的一个：
 
 {% highlight bash %}
 $ python --version
-# the version printed here must be 3.5, 3.6 or 3.7
+# the version printed here must be 3.5, 3.6, 3.7 or 3.8
 {% endhighlight %}
 
 -   提交一个Python Table的作业:
@@ -163,7 +162,7 @@ $ python --version
         ./bin/flink run -m myJMHost:8081 \
                             -py examples/python/table/batch/word_count.py
 
--   提交一个运行在有两个TaskManager的[per-job YARN cluster]({{site.baseurl}}/ops/deployment/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn)的Python Table的作业:
+-   提交一个运行在有两个TaskManager的[per-job YARN cluster]({% link ops/deployment/yarn_setup.zh.md %}#run-a-single-flink-job-on-hadoop-yarn)的Python Table的作业:
 
         ./bin/flink run -m yarn-cluster \
                                  -py examples/python/table/batch/word_count.py
@@ -212,7 +211,7 @@ $ python --version
 
 ### Savepoints
 
-[Savepoints]({{site.baseurl}}/ops/state/savepoints.html) are controlled via the command line client:
+[Savepoints]({% link ops/state/savepoints.zh.md %}) are controlled via the command line client:
 
 #### Trigger a Savepoint
 
@@ -225,7 +224,7 @@ This will trigger a savepoint for the job with ID `jobId`, and returns the path 
 
 Furthermore, you can optionally specify a target file system directory to store the savepoint in. The directory needs to be accessible by the JobManager.
 
-If you don't specify a target directory, you need to have [configured a default directory]({{site.baseurl}}/ops/state/savepoints.html#configuration). Otherwise, triggering the savepoint will fail.
+If you don't specify a target directory, you need to have [configured a default directory]({% link ops/state/savepoints.zh.md %}#configuration). Otherwise, triggering the savepoint will fail.
 
 #### Trigger a Savepoint with YARN
 
@@ -262,7 +261,7 @@ You can atomically trigger a savepoint and cancel a job.
 ./bin/flink cancel -s [savepointDirectory] <jobID>
 {% endhighlight %}
 
-If no savepoint directory is configured, you need to configure a default savepoint directory for the Flink installation (see [Savepoints]({{site.baseurl}}/ops/state/savepoints.html#configuration)).
+If no savepoint directory is configured, you need to configure a default savepoint directory for the Flink installation (see [Savepoints]({% link ops/state/savepoints.zh.md %}#configuration)).
 
 The job will only be cancelled if the savepoint succeeds.
 
@@ -377,8 +376,8 @@ Action "run" compiles and runs a program.
                                           UDF worker (e.g.: --pyExecutable
                                           /usr/local/bin/python3). The python
                                           UDF worker depends on a specified Python
-                                          version 3.5, 3.6 or 3.7, Apache Beam
-                                          (version == 2.19.0), Pip (version >= 7.1.0)
+                                          version 3.5, 3.6 3.7 or 3.8, Apache Beam
+                                          (version == 2.23.0), Pip (version >= 7.1.0)
                                           and SetupTools (version >= 37.0.0).
                                           Please ensure that the specified environment
                                           meets the above requirements.

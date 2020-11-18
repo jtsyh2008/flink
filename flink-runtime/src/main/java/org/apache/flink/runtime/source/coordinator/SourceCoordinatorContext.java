@@ -31,9 +31,9 @@ import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
+import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.Preconditions;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -184,6 +184,19 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 	}
 
 	@Override
+	public void signalNoMoreSplits(int subtask) {
+		// Ensure the split assignment is done by the the coordinator executor.
+		callInCoordinatorThread(() -> {
+			try {
+				operatorCoordinatorContext.sendEvent(new NoMoreSplitsEvent(), subtask);
+				return null; // void return value
+			} catch (TaskNotRunningException e) {
+				throw new FlinkRuntimeException("Failed to send 'NoMoreSplits' to reader " + subtask, e);
+			}
+		}, "Failed to send 'NoMoreSplits' to reader " + subtask);
+	}
+
+	@Override
 	public <T> void callAsync(
 			Callable<T> callable,
 			BiConsumer<T, Throwable> handler,
@@ -195,6 +208,11 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 	@Override
 	public <T> void callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler) {
 		notifier.notifyReadyAsync(callable, handler);
+	}
+
+	@Override
+	public void runInCoordinatorThread(Runnable runnable) {
+		coordinatorExecutor.execute(runnable);
 	}
 
 	@Override
@@ -261,8 +279,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 	 * @param subtaskId the subtask id of the source reader.
 	 */
 	void unregisterSourceReader(int subtaskId) {
-		Preconditions.checkNotNull(registeredReaders.remove(subtaskId), String.format(
-				"Failed to unregister source reader of id %s because it is not registered.", subtaskId));
+		registeredReaders.remove(subtaskId);
 	}
 
 	/**

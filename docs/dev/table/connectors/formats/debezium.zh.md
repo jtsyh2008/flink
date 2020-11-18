@@ -24,6 +24,7 @@ under the License.
 -->
 
 <span class="label label-info">Changelog-Data-Capture Format</span>
+<span class="label label-info">Format: Serialization Schema</span>
 <span class="label label-info">Format: Deserialization Schema</span>
 
 * This will be replaced by the TOC
@@ -36,6 +37,9 @@ Flink 支持将 Debezium JSON 消息解析为 INSERT / UPDATE / DELETE 消息到
  - 日志审计
  - 数据库的实时物化视图
  - 关联维度数据库的变更历史，等等。
+
+Flink 还支持将 Flink SQL 中的 INSERT / UPDATE / DELETE 消息编码为 Debezium 格式的 JSON 消息，输出到 Kafka 等存储中。
+但需要注意的是，目前 Flink 还不支持将 UPDATE_BEFORE 和 UPDATE_AFTER 合并为一条 UPDATE 消息。因此，Flink 将 UPDATE_BEFORE 和 UPDATE_AFTER 分别编码为 DELETE 和 INSERT 类型的 Debezium 消息。
 
 *注意: 支持解析 Debezium Avro 消息和输出 Debezium 消息已经规划在路线图上了。*
 
@@ -195,6 +199,26 @@ Format 参数
       </ul>
       </td>
     </tr>
+    <tr>
+       <td><h5>debezium-json.map-null-key.mode</h5></td>
+       <td>选填</td>
+       <td style="word-wrap: break-word;"><code>'FAIL'</code></td>
+       <td>String</td>
+       <td>指定处理 Map 中 key 值为空的方法. 当前支持的值有 <code>'FAIL'</code>, <code>'DROP'</code> 和 <code>'LITERAL'</code>:
+       <ul>
+         <li>Option <code>'FAIL'</code> 将抛出异常，如果遇到 Map 中 key 值为空的数据。</li>
+         <li>Option <code>'DROP'</code> 将丢弃 Map 中 key 值为空的数据项。</li> 
+         <li>Option <code>'LITERAL'</code> 将使用字符串常量来替换 Map 中的空 key 值。字符串常量的值由 <code>'debezium-json.map-null-key.literal'</code> 定义。</li>
+       </ul>
+       </td>
+    </tr>
+    <tr>
+      <td><h5>debezium-json.map-null-key.literal</h5></td>
+      <td>选填</td>
+      <td style="word-wrap: break-word;">'null'</td>
+      <td>String</td>
+      <td>当 <code>'debezium-json.map-null-key.mode'</code> 是 LITERAL 的时候，指定字符串常量替换 Map 中的空 key 值。</td>
+    </tr>             
     </tbody>
 </table>
 
@@ -213,5 +237,5 @@ Format 参数
 数据类型映射
 ----------------
 
-目前，Debezium Format 使用 JSON Format 进行反序列化。有关数据类型映射的更多详细信息，请参考 [JSON Format 文档]({% link dev/table/connectors/formats/json.zh.md %}#data-type-mapping)。
+目前，Debezium Format 使用 JSON Format 进行序列化和反序列化。有关数据类型映射的更多详细信息，请参考 [JSON Format 文档]({% link dev/table/connectors/formats/json.zh.md %}#data-type-mapping)。
 

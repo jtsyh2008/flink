@@ -92,6 +92,7 @@ import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
+import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
@@ -135,8 +136,6 @@ import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 
-import org.apache.commons.lang3.StringUtils;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -178,7 +177,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
 			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
 			"CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, DROP CATALOG, " +
-			"USE CATALOG, USE [CATALOG.]DATABASE, SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, " +
+			"USE CATALOG, USE [CATALOG.]DATABASE, SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, SHOW PARTITIONS" +
 			"CREATE VIEW, DROP VIEW, SHOW VIEWS, INSERT, DESCRIBE.";
 
 	/**
@@ -690,7 +689,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 					.jobClient(jobClient)
 					.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
 					.tableSchema(builder.build())
-					.data(Collections.singletonList(Row.of(affectedRowCounts)))
+					.data(new InsertResultIterator(jobClient, Row.of(affectedRowCounts), userClassLoader))
 					.build();
 		} catch (Exception e) {
 			throw new TableException("Failed to execute sql", e);
@@ -1021,6 +1020,28 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			return buildShowResult("function name", listFunctions());
 		} else if (operation instanceof ShowViewsOperation) {
 			return buildShowResult("view name", listViews());
+		} else if (operation instanceof ShowPartitionsOperation) {
+			String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
+			try {
+				ShowPartitionsOperation showPartitionsOperation = (ShowPartitionsOperation) operation;
+				Catalog catalog = getCatalogOrThrowException(showPartitionsOperation.getTableIdentifier().getCatalogName());
+				ObjectPath tablePath = showPartitionsOperation.getTableIdentifier().toObjectPath();
+				CatalogPartitionSpec partitionSpec = showPartitionsOperation.getPartitionSpec();
+				List<CatalogPartitionSpec> partitionSpecs = partitionSpec == null ? catalog.listPartitions(tablePath) : catalog.listPartitions(tablePath, partitionSpec);
+				List<String> partitionNames = new ArrayList<>(partitionSpecs.size());
+				for (CatalogPartitionSpec spec: partitionSpecs) {
+					List<String> partitionKVs = new ArrayList<>(spec.getPartitionSpec().size());
+					for (Map.Entry<String, String> partitionKV: spec.getPartitionSpec().entrySet()) {
+						partitionKVs.add(partitionKV.getKey() + "=" + partitionKV.getValue());
+					}
+					partitionNames.add(String.join("/", partitionKVs));
+				}
+				return buildShowResult("partition name", partitionNames.toArray(new String[0]));
+			} catch (TableNotExistException e) {
+				throw new ValidationException(exMsg, e);
+			} catch (Exception e) {
+				throw new TableException(exMsg, e);
+			}
 		} else if (operation instanceof ExplainOperation) {
 			String explanation = planner.explain(Collections.singletonList(((ExplainOperation) operation).getChild()));
 			return TableResultImpl.builder()
@@ -1088,18 +1109,19 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			schema.getTableColumns()
 				.stream()
 				.map((c) -> {
-					LogicalType logicalType = c.getType().getLogicalType();
+					final LogicalType logicalType = c.getType().getLogicalType();
 					return new Object[]{
 						c.getName(),
-						StringUtils.removeEnd(logicalType.toString(), " NOT NULL"),
+						logicalType.copy(true).asSummaryString(),
 						logicalType.isNullable(),
 						fieldToPrimaryKey.getOrDefault(c.getName(), null),
-						c.getExpr().orElse(null),
-						fieldToWatermark.getOrDefault(c.getName(), null)};
+						c.explainExtras().orElse(null),
+						fieldToWatermark.getOrDefault(c.getName(), null)
+					};
 				}).toArray(Object[][]::new);
 
 		return buildResult(
-			new String[]{"name", "type", "null", "key", "computed column", "watermark"},
+			new String[]{"name", "type", "null", "key", "extras", "watermark"},
 			new DataType[]{DataTypes.STRING(), DataTypes.STRING(), DataTypes.BOOLEAN(), DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()},
 			rows);
 	}

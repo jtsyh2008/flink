@@ -24,6 +24,7 @@ under the License.
 -->
 
 <span class="label label-info">Changelog-Data-Capture Format</span>
+<span class="label label-info">Format: Serialization Schema</span>
 <span class="label label-info">Format: Deserialization Schema</span>
 
 * This will be replaced by the TOC
@@ -37,16 +38,18 @@ Flink supports to interpret Debezium JSON messages as INSERT/UPDATE/DELETE messa
  - real-time materialized views on databases
  - temporal join changing history of a database table and so on.
 
+Flink also supports to encode the INSERT/UPDATE/DELETE messages in Flink SQL as Debezium JSON messages, and emit to storage like Kafka.
+However, currently Flink can't combine UPDATE_BEFORE and UPDATE_AFTER into a single UPDATE message. Therefore, Flink encodes UPDATE_BEFORE and UDPATE_AFTER as DELETE and INSERT Debezium messages.
+
 *Note: Support for interpreting Debezium Avro messages and emitting Debezium messages is on the roadmap.*
 
 Dependencies
 ------------
 
-In order to setup the Debezium format, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
-| Maven dependency   | SQL Client JAR         |
-| :----------------- | :----------------------|
-| `flink-json`       | Built-in               |
+{% assign connector = site.data.sql-connectors['debezium'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 *Note: please refer to [Debezium documentation](https://debezium.io/documentation/reference/1.1/index.html) about how to setup a Debezium Kafka Connect to synchronize changelog to Kafka topics.*
 
@@ -197,6 +200,27 @@ Format Options
        </ul>
        </td>
     </tr>
+    <tr>
+      <td><h5>debezium-json.map-null-key.mode</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;"><code>'FAIL'</code></td>
+      <td>String</td>
+      <td>Specify the handling mode when serializing null keys for map data. Currently supported values are <code>'FAIL'</code>, <code>'DROP'</code> and <code>'LITERAL'</code>:
+      <ul>
+        <li>Option <code>'FAIL'</code> will throw exception when encountering map with null key.</li>
+        <li>Option <code>'DROP'</code> will drop null key entries for map data.</li>
+        <li>Option <code>'LITERAL'</code> will replace null key with string literal. The string literal is defined by <code>debezium-json.map-null-key.literal</code> option.</li>
+      </ul>
+      </td>
+    </tr>
+    <tr>
+      <td><h5>debezium-json.map-null-key.literal</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">'null'</td>
+      <td>String</td>
+      <td>Specify string literal to replace null key when <code>'debezium-json.map-null-key.mode'</code> is LITERAL.</td>
+    </tr>        
+    <tr>       
     </tbody>
 </table>
 
@@ -215,5 +239,5 @@ See more details in [Debezium Documentation for PostgreSQL REPLICA IDENTITY](htt
 Data Type Mapping
 ----------------
 
-Currently, the Debezium format uses JSON format for deserialization. Please refer to [JSON format documentation]({% link dev/table/connectors/formats/json.md %}#data-type-mapping) for more details about the data type mapping.
+Currently, the Debezium format uses JSON format for serialization and deserialization. Please refer to [JSON format documentation]({% link dev/table/connectors/formats/json.md %}#data-type-mapping) for more details about the data type mapping.
 

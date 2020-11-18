@@ -36,9 +36,31 @@ CREATE 语句用于向当前或指定的 [Catalog]({{ site.baseurl }}/zh/dev/tab
 
 ## 执行 CREATE 语句
 
-可以使用 `TableEnvironment` 中的 `executeSql()` 方法执行 CREATE 语句，也可以在 [SQL CLI]({{ site.baseurl }}/zh/dev/table/sqlClient.html) 中执行 CREATE 语句。 若 CREATE 操作执行成功，`executeSql()` 方法返回 'OK'，否则会抛出异常。
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="java/scala" markdown="1">
 
-以下的例子展示了如何在 `TableEnvironment` 和  SQL CLI 中执行一个 CREATE 语句。
+可以使用 `TableEnvironment` 中的 `executeSql()` 方法执行 CREATE 语句。 若 CREATE 操作执行成功，`executeSql()` 方法返回 'OK'，否则会抛出异常。
+
+以下的例子展示了如何在 `TableEnvironment` 中执行一个 CREATE 语句。
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+可以使用 `TableEnvironment` 中的 `execute_sql()` 方法执行 CREATE 语句。 若 CREATE 操作执行成功，`execute_sql()` 方法返回 'OK'，否则会抛出异常。
+
+以下的例子展示了如何在 `TableEnvironment` 中执行一个 CREATE 语句。
+
+</div>
+
+<div data-lang="SQL CLI" markdown="1">
+
+可以在 [SQL CLI]({{ site.baseurl }}/zh/dev/table/sqlClient.html) 中执行 CREATE 语句。
+
+以下的例子展示了如何在 SQL CLI 中执行一个 CREATE 语句。
+
+</div>
+</div>
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -149,6 +171,9 @@ CREATE TABLE [catalog_name.][db_name.]table_name
 <watermark_definition>:
   WATERMARK FOR rowtime_column_name AS watermark_strategy_expression
 
+<source_table>:
+  [catalog_name.][db_name.]table_name
+
 <like_options>:
 {
    { INCLUDING | EXCLUDING } { ALL | CONSTRAINTS | PARTITIONS }
@@ -190,11 +215,11 @@ Flink 提供了几种常用的 watermark 策略。
 
 - 严格递增时间戳： `WATERMARK FOR rowtime_column AS rowtime_column`。
 
-  发出到目前为止已观察到的最大时间戳的 watermark ，时间戳小于最大时间戳的行被认为没有迟到。
+  发出到目前为止已观察到的最大时间戳的 watermark ，时间戳大于最大时间戳的行被认为没有迟到。
 
 - 递增时间戳： `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '0.001' SECOND`。
 
-  发出到目前为止已观察到的最大时间戳减 1 的 watermark ，时间戳等于或小于最大时间戳的行被认为没有迟到。
+  发出到目前为止已观察到的最大时间戳减 1 的 watermark ，时间戳大于或等于最大时间戳的行被认为没有迟到。
 
 - 有界乱序时间戳： `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL 'string' timeUnit`。
 
@@ -336,6 +361,8 @@ LIKE Orders_in_file (
 
 **注意：** 您无法选择物理列的合并策略，当物理列进行合并时就如使用了 `INCLUDING` 策略。
 
+**注意：** 源表 `source_table` 可以是一个组合 ID。您可以指定不同 catalog 或者 DB 的表作为源表: 例如，`my_catalog.my_db.MyTable` 指定了源表 `MyTable` 来源于名为 `MyCatalog` 的 catalog  和名为 `my_db` 的 DB ，`my_db.MyTable` 指定了源表 `MyTable` 来源于当前 catalog  和名为 `my_db` 的 DB。
+
 {% top %}
 
 ## CREATE CATALOG
@@ -407,7 +434,9 @@ CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
 
 如果 language tag 是 JAVA 或者 SCALA ，则 identifier 是 UDF 实现类的全限定名。关于 JAVA/SCALA UDF 的实现，请参考 [自定义函数]({{ site.baseurl }}/zh/dev/table/functions/udfs.html)。
 
-如果 language tag 是 PYTHON ，则 identifier 是 UDF 对象的全限定名，例如 `pyflink.table.tests.test_udf.add`。关于 PYTHON UDF 的实现，请参考 [Python UDFs]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html)。
+如果 language tag 是 PYTHON，则 identifier 是 UDF 对象的全限定名，例如 `pyflink.table.tests.test_udf.add`。关于 PYTHON UDF 的实现，请参考 [Python UDFs]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %})。
+
+如果 language tag 是 PYTHON，而当前程序是 Java／Scala 程序或者纯 SQL 程序，则需要[配置 Python 相关的依赖]({% link dev/python/table-api-users-guide/dependency_management.zh.md %}#python-dependency-in-javascala-program)。
 
 **TEMPORARY**
 

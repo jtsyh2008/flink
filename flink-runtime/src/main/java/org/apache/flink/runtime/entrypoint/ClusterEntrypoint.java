@@ -59,7 +59,6 @@ import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.contexts.SecurityContext;
-import org.apache.flink.runtime.util.ClusterEntrypointUtils;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcMetricQueryServiceRetriever;
@@ -399,8 +398,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
 	@Override
 	public void onFatalError(Throwable exception) {
-		Throwable enrichedException = ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(exception);
-		LOG.error("Fatal error occurred in the cluster entrypoint.", enrichedException);
+		ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(exception);
+		LOG.error("Fatal error occurred in the cluster entrypoint.", exception);
 
 		System.exit(RUNTIME_FAILURE_RETURN_CODE);
 	}

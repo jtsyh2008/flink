@@ -127,7 +127,6 @@ should only be used if you cannot set a strategy directly on the source:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 DataStream<MyEvent> stream = env.readFile(
         myFormat, myFilePath, FileProcessingMode.PROCESS_CONTINUOUSLY, 100,
@@ -139,7 +138,7 @@ DataStream<MyEvent> withTimestampsAndWatermarks = stream
 
 withTimestampsAndWatermarks
         .keyBy( (event) -> event.getGroup() )
-        .timeWindow(Time.seconds(10))
+        .window(TumblingEventTimeWindows.of(Time.seconds(10)))
         .reduce( (a, b) -> a.add(b) )
         .addSink(...);
 {% endhighlight %}
@@ -147,7 +146,6 @@ withTimestampsAndWatermarks
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment
-env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
 val stream: DataStream[MyEvent] = env.readFile(
          myFormat, myFilePath, FileProcessingMode.PROCESS_CONTINUOUSLY, 100,
@@ -159,7 +157,7 @@ val withTimestampsAndWatermarks: DataStream[MyEvent] = stream
 
 withTimestampsAndWatermarks
         .keyBy( _.getGroup )
-        .timeWindow(Time.seconds(10))
+        .window(TumblingEventTimeWindows.of(Time.seconds(10)))
         .reduce( (a, b) => a.add(b) )
         .addSink(...)
 {% endhighlight %}
@@ -235,7 +233,7 @@ public interface WatermarkGenerator<T> {
 There are two different styles of watermark generation: *periodic* and
 *punctuated*.
 
-A periodic generator usually observes to the incoming events via `onEvent()`
+A periodic generator usually observes the incoming events via `onEvent()`
 and then emits a watermark when the framework calls `onPeriodicEmit()`.
 
 A puncutated generator will look at events in `onEvent()` and wait for special
